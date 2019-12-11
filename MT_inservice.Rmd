@@ -1,0 +1,181 @@
+---
+title: "In-service"
+author: "Connor Cerkovnik"
+date: "11/30/2019"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(DBI)
+library(scales)
+library(lubridate)
+library(dbplyr)
+library(Hmisc)
+library(ggplot2)
+
+setwd("~/Desktop/Applied Data Analytics")
+
+con <- dbConnect(RSQLite::SQLite(),
+                 dbname=paste0("mt_collections.db"))
+dbListTables(con)
+
+non_db<-tbl(con,'evs_collections_ins')
+surg_db<-tbl(con,"surgical_collections_ins")
+
+evs<-non_db %>% 
+  select(fa_name,non_collected_2018,non_collected_2019,q4_2018_evs,q1_2019_EVS) %>% 
+  collect
+
+surgical<- surg_db %>% 
+  select(fa_name,surg_collected_2019,q4_2018_OR,q1_2019_OR) %>% 
+  collect
+```
+
+# Executive Summary
+
+The goal of this analysis was to see which quarter was best for in-servicing.  From  the models it appears that for non-invasive collections, the inservices that have the most effect are the ones done in quarter 1. For surgical collections, the inservices that had the most effect were the ones done in qurater 4 of the previous year.  This might be because the evs staff usually takes most of the holidays off.  While the surgical staff usually works throught he holidays.  This an analysis  develops a solid hypothesis, but needs more then one year of data and more then one region, for this to be a solid conclusion.  However, this analysis serves as a solid baseline hypothesis for future analyses
+
+
+
+# Introduction
+
+The goal of this analysis is to analyze which quarter the evs and or inservices are most effective in increasing collections.  In-services are staff education on what should be recycled.  Most inservices are done in either quarter 4  or quarter 1.  Those two quarters will be the focal point of this analysis. 
+
+The data mt_collections.db are the combination two csv files that I got from Stryker Sustaianability's Business Intelligence department.  The first file is all collections in Montana from September 2018 to 
+September 2019.  The second file is the inservices I performed in that same time period.
+
+I did quite a bit of Python/SQL work (see my repo) to get total collections in the same table as my total 
+inservices.  The main two tables I will be using is "evs_collections_ins" for the evs inservices and non-
+invasive collections, and "surgial_collections_ins" for the OR staff inservices and surgical collections.  These are the total collections combined with the total inservices in each quarter.
+
+# Analysis
+
+The analysis began with some descriptive statistics fro the Montana EVS Inservices and non-invasive collections. The mean collections for all the accounts in 2019 was 7778 non-invasive items, with a standard deviation of 9165 items. The mean number of inservices in quarter 4 of 2018 was 0.318 with a standard deviation of 0.65. The mean is so low because there is at most 2 in-services for an account in each quarter.  The mean number of EVS In-services for Quarter 1 0.307 with a standard deviation of 0.48.  Below chart 1 show 2019 non-invasive collections.
+
+```{r echo=FALSE}
+eplot<-ggplot(data=evs,aes(x=fa_name, y=non_collected_2019)) +
+geom_bar(stat = "identity",fill='gold')+
+theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+labs(title="2019 Non-invasive Collections")
+
+eplot
+```
+
+
+Two linear regressions exploring the linear relationship between 2019 non-invasive collections and the number of 2018 quarter 3 in-service and number of 2019 quarter 1 inservices were performed.  The code can be seen in appendix A.
+
+The first linear regression looking at the linear relationship between the non-invasive collections and 
+2018 Quarter 4 in-services was not significant with a p-value of 0.5065.
+
+The second linear regression looking at the relationship between 2019 non-invasive collections and 2019 quarter 1 EVS in-services is significant with a p-value of 0.0462.  The R^2 value for this model was 0.31 meaning that 31% of the variance in non-invasive collections can be explained by 2019 quarter 1 in-services.  The equation for this model is est.collection= 4486 + 10699(2019_Q1_In-services).Interrpreting this, if there were no Quarter 1 in-services there would be approximately 4486 units collected.  For the slope, an increase in 1 in-service in quarter  one there will be an approximate increase of 10699 units collected.
+
+I then looked at the assumptions for this model.  There a couple outliers in this model, but some of those like Billings Clinic doesn't allow EVS in-services but is my largest account, so by default will have the most collections.  I didn't want to take this out of the model because of its importance to our region. For the assumption independence there no evidence of a violation.  The accounts are completely sepearte and wouldn't influence each other.  Looking at the residual .vs. fitted plot there is some outliers skewing the data, but the line is not curved in any way.  So there is little evidence of the linearity assumption being violated. Looking at the Normal Q-Q plot, the outliers are causing a hard left skew, so there is evidence of the normality of residuals assumption being violated. Again looking at the reseiduals .vs. fitted plot there is some widening on the ends of the line. Meaning There is evidence of the equal variance assumption being violated. The plots can be seen in the appendix below. 
+
+
+#Surgical
+
+
+The next part of the analysis is covering surgical collections and their relationship with OR in-services.  Much like before the linear model examines the relationship between the quarter of the in-service and the total surgical collections.  Some decriptive stats were done,
+
+
+
+The mean surgical collections, was 976.3 units collected with a standard deviation of 1047.35.  The mean number of 2018 quarter 4 inservices was 0.21 inservices with a standard deviation 0.426.  The mean inservices quarter one of 2019 was 0.64, with a standard deviation of 0.497.  Chart 2 below shows the 2019 surgical collections
+
+```{r echo=FALSE}
+splot<-ggplot(data=surgical,aes(x=fa_name, y=surg_collected_2019)) +
+geom_bar(stat = "identity",fill='gold')+
+theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+labs(title="2019 Surgical Collections")
+
+splot
+```
+
+
+Like before two linear models were made comparing 2019 surgical collections with OR In-services in quarter 4 and quarter 1.
+
+The linear model comparing 2019 collections and 2018 quarter 4 inservices was barely significant wit a p-value of 0.05.  The R^2 was 0.28 meaning 28% of the variance observed in 2019 surgical collections can be attributed to 2018 Quarter 4 inservices.  The equation is est.collections= 697.1 + 1302.9(number of in-services). The intercept can be interrpreted as if there was no inservices in quarter 4 of 2018 there would be on average 697.1 units collected.  The slope can be interpreted as for an increase in one inservice, there will be on average a rise in 1302.9 units collected.
+
+The assumptions were then checked.  For the independence assumption there is no evidence of a violation.  The account collections have no way of interfering with each other.  Looking at the residuals .vs. fitted plot the line is pretty straight so there is little to no evidence of a violation of the linear assumption.
+There are some outliers slightly skewing the model, but like I previously said I am not going to take the outliers yet in this analysis.  Looking at the normal Q-Q, there is a large left skew, giving evidence fo a violation in the normality assumption.  There are a couple outliers that are causing some spread in the data, so there is evidence of a violation in varaiance. The plots can be seen in the appendix below.
+
+Doing the linear model examining the relationship between 2019 surgical collections and 2019 quarter 1 collections.  The p-value was 0.394 meaning the relationship was not significant.
+
+# Conclusion
+
+In conclusion, the best quarter for inservices to be done for the EVS staff is in quarter 1.  While the best quarter for inservices for the surgical staff is quarter 4 of the previous year.  This analysis serves as a solid starting hypotheis for future analysis.  The standard errors are all high, and there a quite a few validity assumptions violated.  To expand on this analysis, I would like to get collections and in-service data from multiple years in different regions across the country.  In order to expand on the hypothesis that was created with this analysis.
+
+# Appendix
+
+```{r echo=TRUE}
+#Creating EVS Dplyr Table
+
+evs<-non_db %>% 
+  select(fa_name,non_collected_2018,non_collected_2019,q4_2018_evs,q1_2019_EVS) %>% 
+  collect
+
+```
+
+```{r echo=TRUE}
+#Descriptive stats on the EVS table
+
+describe(evs$non_collected_2019)
+sd(evs$non_collected_2019,na.rm = FALSE)
+
+describe(evs$q4_2018_evs)
+sd(evs$q4_2018_evs,na.rm = FALSE)
+
+describe(evs$q1_2019_EVS)
+sd(evs$q1_2019_EVS,na.rm = FALSE)
+  
+  
+```
+
+```{r echo=TRUE}
+#First EVS linear model
+
+evslm.1<-lm(non_collected_2019~q4_2018_evs,data = evs)
+summary(evslm.1)
+```
+
+```{r echo=TRUE}
+#Second EVS linear model
+
+evslm.2<-lm(non_collected_2019~q1_2019_EVS,data = evs)
+summary(evslm.2)
+```
+
+```{r echo=TRUE}
+#Assumption plots  second EVS linear model
+
+plot(evslm.2)
+```
+
+```{r echo=TRUE}
+#Creating surgical dplyr table
+
+surgical<- surg_db %>% 
+  select(fa_name,surg_collected_2019,q4_2018_OR,q1_2019_OR) %>% 
+  collect
+```
+
+```{r echo=TRUE}
+# First surgical linear regression
+
+surglm.1<-lm(surg_collected_2019~q4_2018_OR,data = surgical)
+summary(surglm.1)
+```
+
+```{r echo=TRUE}
+#Asumption plot fro the first surgical linear model
+
+plot(surglm.1)
+```
+
+```{r echo=TRUE}
+#second surgical linear model
+
+surglm.2<-lm(surg_collected_2019~q1_2019_OR,data = surgical)
+summary(surglm.2)
+```
+
